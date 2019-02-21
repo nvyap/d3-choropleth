@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.states {
+  fill: none;
+  stroke: #fff;
+  stroke-linejoin: round;
+
+}
+
+</style>
+
+
+<body>
+<script src="../lib/d3.v3.min.js"></script>
+<script src="../lib/d3-queue.v3.min.js"></script>
+<script src="../lib/topojson.v1.min.js"></script>
+<script src="../lib/d3.tip.v0.6.3.js"></script>
+
+
+  <h2 style="text-align: center">EDUCATION STATISTICS</h2>
+</br>  </br>
+<script>
+
+// Reference: https://bl.ocks.org/mbostock/3306362.
+
+var tip = d3.tip().attr('class','d3-tip').attr('title','Education Stats')
+.style('border', '1px solid #fff').style('box-shadow', '1px 1px 4px rgba(0,0,0,0.6)')
+.style('border-radius', 'none').style('background-color','rgba(150,150,0,0.5)').html(function(d){return 'County:'+'<span>'+ d[1] +'</span>'+'<br/>'+'Percentage Educated:' +'<span>'+ d[0] + '%'+'</span>'+'<br/>'+'Qualified Professionals:' +'<span>'+ d[2] +'</span>'+'<br/>'+'High School Graduates:'+'<span>'+ d[3] +'</span>'+'<br/>'+'Middle school or lower graduates:'+'<span>'+ d[4] +'</span>'}).offset([-12, 0]);
+
+var width = 1000,
+    height = 500
+    padding = 30;
+
+var color = ['white',
+'#ffffcc',
+'#ffeda0',
+'#fed976',
+'#feb24c',
+'#fd8d3c',
+'#fc4e2a',
+'#e31a1c',
+'#bd0026',
+'#800026']
+
+//tip = d3.tip().attr('class', 'd3-tip').html(function(d) { return d; });
+
+var percentages = ['0%', '10%', '20%', '30%', '40%', '50%', '60%', '70%','80%','90%']
+
+var colors = d3.scale.threshold()
+    .domain([0,10, 20, 30, 40, 50, 60, 70, 80, 90])
+    .range(['white',
+'#ffffcc',
+'#ffeda0',
+'#fed976',
+'#feb24c',
+'#fd8d3c',
+'#fc4e2a',
+'#e31a1c',
+'#bd0026',
+'#800026'])
+
+
+
+var path = d3.geo.path();
+
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+svg.call(tip);
+
+d3.queue()
+    .defer(d3.json, "us.json")
+    .defer(d3.csv, "education.csv")
+    .defer(d3.csv, "education_details.csv")
+    .await(ready);
+
+
+function ready(error, us, education, education_details) {
+  if (error) throw error;
+
+  var rateByPerEdu = {};
+  var display = {};
+  var display1 = {};
+
+  education.forEach(function(d) {var obj = education_details.find(function(e){
+    return d.id ===  e.id
+  });
+  d.qualified_professionals = obj.qualified_professionals;
+  d.high_school = obj.high_school;
+  d.middle_school_or_lower = obj.middle_school_or_lower;
+});
+
+
+  education.forEach(function(d) {rateByPerEdu[d.id] = +d.percent_educated;
+    var PEd = +d.percent_educated;
+    var name = d.name;
+    var QP = d.qualified_professionals;
+    var HS = d.high_school;
+    var MSL = d.middle_school_or_lower;
+    display[d.id] = [PEd,name,QP,HS,MSL]});
+
+  svg.call(tip);
+
+  svg.append("g")
+      .attr("class", "counties")
+    .selectAll("path")
+      .data(topojson.feature(us, us.objects.counties).features)
+      .enter().append("path")
+      .attr("d", path)
+      .style("stroke","white")
+      .style("fill", function(d) { return colors(rateByPerEdu[d.id]); })
+      .on('mouseover', function(d){return tip.show(display[d.id]);})
+      .on('mouseout', tip.hide);
+
+
+  svg.append("path")
+      .datum(topojson.mesh(us, us.objects.states, function(a, b) { return a.id !== b.id; }))
+      .attr("class", "states")
+      .attr("d", path);
+
+}
+
+var legend = svg.selectAll(".legend")
+      .data(color)
+    .enter().append("g")
+      .attr("class", "legend")
+      .attr("transform", function(d, i) { return "translate(" + (width-4*padding + 20) + "," + (100 + i * 20) + ")"; });
+
+  legend.append("rect")
+      .attr("width", 30)
+      .attr("height", 20)
+      .data(color)
+      .style("stroke","black")
+      .style("fill", function(d) { return d; });
+
+  legend.append("text")
+      .attr("x", 40)
+      .attr("y", 10)
+      .attr("dy", ".35em")
+      .data(percentages)
+      .text(function(d,i) { return percentages[i]; }); //console.log(percentages[i]);
+
+  svg.append("text")
+      .attr("class", "label")
+      .attr("x", width-5*padding + 20)
+      .attr("y", 80)
+      .attr("dy", ".35em")
+      .text("Percentage educated");
+
+
+
+</script>
+</body>
